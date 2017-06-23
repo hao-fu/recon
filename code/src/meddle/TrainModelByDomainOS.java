@@ -71,6 +71,7 @@ public class TrainModelByDomainOS {
 				infoFilePath = RConfig.indexDefJSON;
 			}
 			Object obj = parser.parse(new FileReader(infoFilePath));
+			System.out.println(obj.getClass());
 			JSONObject domain_os_reports = (JSONObject) obj;
 			int numTrained = 0;
 			for (Object k : domain_os_reports.keySet()) {
@@ -147,11 +148,11 @@ public class TrainModelByDomainOS {
 			int thresholdFrequency, MetaEvaluationMeasures mem) {
 		Instances trainingSet = null;
 		TrainingData trainingData = new TrainingData();
-		trainingData.mem = mem;
-		trainingData.mem.numPositive = mem.info.initNumPos;
-		trainingData.mem.numNegative = mem.info.initNumNeg;
-		trainingData.mem.numTotal = mem.info.initNumTotal;
-		trainingData.mem.numInstance = mem.info.initNumTotal;
+		trainingData.metaEvaluationMeasures = mem;
+		trainingData.metaEvaluationMeasures.numPositive = mem.info.initNumPos;
+		trainingData.metaEvaluationMeasures.numNegative = mem.info.initNumNeg;
+		trainingData.metaEvaluationMeasures.numTotal = mem.info.initNumTotal;
+		trainingData.metaEvaluationMeasures.numInstance = mem.info.initNumTotal;
 		JSONParser parser = new JSONParser();
 		JSONObject domainOSFlows;
 		try {
@@ -159,8 +160,8 @@ public class TrainModelByDomainOS {
 					RConfig.trainingDataFolder + jsonFilePathRelative));
 			System.out.println(RConfig.trainingDataFolder + jsonFilePathRelative+domainOSFlows.size());
 			int[] changes = balanceClassSamples(
-					trainingData.mem.info.initNumPos,
-					trainingData.mem.info.initNumNeg, 10);
+					trainingData.metaEvaluationMeasures.info.initNumPos,
+					trainingData.metaEvaluationMeasures.info.initNumNeg, 10);
 			if (changes[0] != 0 || changes[1] != 0) {
 				// IF the sample needs balancing
 				System.out.println("Try to balance the samples...");
@@ -228,8 +229,8 @@ public class TrainModelByDomainOS {
 				}
 				// ! changes[1] == 0 indicts changed=false;
 				if (changed) {
-					trainingData.mem.numPositive = posDomainOSFlows.size();
-					trainingData.mem.numNegative = negDomainOSFlows.size();
+					trainingData.metaEvaluationMeasures.numPositive = posDomainOSFlows.size();
+					trainingData.metaEvaluationMeasures.numNegative = negDomainOSFlows.size();
 					domainOSFlows = new JSONObject();
 					for (Object k : posDomainOSFlows.keySet()) {
 						domainOSFlows.put(k, posDomainOSFlows.get(k));
@@ -237,17 +238,17 @@ public class TrainModelByDomainOS {
 					for (Object k : negDomainOSFlows.keySet()) {
 						domainOSFlows.put(k, negDomainOSFlows.get(k));
 					}
-					trainingData.mem.numTotal = domainOSFlows.size();
+					trainingData.metaEvaluationMeasures.numTotal = domainOSFlows.size();
 				}
 			}
 
-			if (trainingData.mem.numTotal >= 2 && trainingData.mem.numPositive >= 1) {
+			if (trainingData.metaEvaluationMeasures.numTotal >= 2 && trainingData.metaEvaluationMeasures.numPositive >= 1) {
 				trainingData = populateTrainingMatrix(domainOSFlows,
 						trainingData);
-				if (trainingData.mem.numOfPossibleFeatures > 5)
+				if (trainingData.metaEvaluationMeasures.numOfPossibleFeatures > 5)
 					trainingSet = populateArff(mem.info,
 							trainingData.wordCount, trainingData.trainMatrix,
-							trainingData.piiLabels, trainingData.mem.numTotal,
+							trainingData.piiLabels, trainingData.metaEvaluationMeasures.numTotal,
 							thresholdFrequency);
 			}
 
@@ -375,7 +376,7 @@ public class TrainModelByDomainOS {
 		trainingData.wordCount = word_count;
 		trainingData.trainMatrix = trainMatrix;
 		trainingData.piiLabels = piiLabels;
-		trainingData.mem.numOfPossibleFeatures = numOfPossibleFeatures;
+		trainingData.metaEvaluationMeasures.numOfPossibleFeatures = numOfPossibleFeatures;
 		return trainingData;
 	}
 
@@ -534,9 +535,9 @@ public class TrainModelByDomainOS {
 	 * Do evalution on trained classifier/model, including the summary, false
 	 * positive/negative rate, AUC, running time
 	 * 
-	 * @param j48
+	 * @param classifier
 	 *            - the trained classifier
-	 * @param domain
+	 * @param domainOS
 	 *            - the domain name
 	 */
 	public static MetaEvaluationMeasures doEvaluation(Classifier classifier,
@@ -678,115 +679,14 @@ public class TrainModelByDomainOS {
 		return mem;
 	}
 
-}
-
-class TrainingData {
-	// feature_name:count, for freqency of word in a specific domain
-	public Map<String, Integer> wordCount;
-	public ArrayList<Map<String, Integer>> trainMatrix;
-	public ArrayList<Integer> piiLabels;
-	public Instances trainingInstances;
-	
-	public MetaEvaluationMeasures mem;
-	
-	public TrainingData(){
-		wordCount = new HashMap<String, Integer>();
-		trainMatrix = new ArrayList<Map<String, Integer>>();
-		piiLabels = new ArrayList<Integer>();
-		mem = new MetaEvaluationMeasures();
+	public static void main(String[] args) {
+		TrainModelByDomainOS.trainAllDomains("J48",
+				"C:/Users/hfu/PycharmProjects/TrafficAnalysis/pcap_json/0/1.95622.com_2011-08-10_09-37-28-681214.json");
 	}
 
 }
 
-/**
- * Intermediate and final results during training a classifier for the domain,os. 
- * */
-class MetaEvaluationMeasures {
-	public double falsePositiveRate;
-	public double falseNegativeRate;
-	public double trainingTime;
-	public double populatingTime;
-	
-	public int numTotal;
-	public int numPositive;
-	public int numNegative;
-	public int numOfPossibleFeatures;
 
-	public double AUC;
-	public double fMeasure;
-	public double numInstance;
-	public int numCorrectlyClassified;
-	public double accuracy; // = NumCorrectlyClassified / NumTotal
-	public double[][] confusionMatrix;
-	public double TP;
-	public double TN;
-	public double FP;
-	public double FN;
-	public Info info;
 
-	public String recordForInitialTrain() {
-		String str = "";
-		str += this.info.domain + "\t";
-		str += this.info.OS + "\t";
-		str += String.format("%.4f", this.accuracy) + "\t";
-		str += String.format("%.4f", this.falsePositiveRate) + "\t";
-		str += String.format("%.4f", this.falseNegativeRate) + "\t";
-		str += String.format("%.4f", this.AUC) + "\t";
-		str += String.format("%.4f", this.trainingTime) + "\t";
 
-		str += this.numPositive + "\t";
-		str += this.numNegative + "\t";
-		str += this.numTotal + "\t";
 
-		str += this.info.initNumPos + "\t"; // # positive samples initially
-		str += this.info.initNumNeg + "\t";
-		str += this.info.initNumTotal + "\t";
-
-		return str;
-	}
-
-	@SuppressWarnings("unchecked")
-	public String recordJSONFormat() {
-		String str = "";
-		JSONObject obj = new JSONObject();
-		obj.put("domain", info.domain);
-		obj.put("os", info.OS);
-		obj.put("domain_os", info.domainOS);
-		obj.put("json_file", info.fileNameRelative);
-		obj.put("accuracy", this.accuracy);
-		obj.put("fpr", falsePositiveRate);
-		obj.put("fnr", falseNegativeRate);
-		obj.put("auc", AUC);
-		obj.put("traing_time", trainingTime);
-		obj.put("populating_time", populatingTime);
-
-		obj.put("init_num_pos", info.initNumPos);
-		obj.put("init_num_neg", info.initNumNeg);
-		obj.put("init_num_total", info.initNumTotal);
-
-		obj.put("num_pos", this.numPositive);
-		obj.put("num_neg", this.numNegative);
-		obj.put("num_total", this.numTotal);
-
-		str = obj.toJSONString() + "";
-		System.out.println(str);
-		return str;
-	}
-
-}
-
-/**
- * Information of the training data set, or description of the network flows.
- * */
-class Info {
-
-	public String domain;
-	public String OS;
-	public String domainOS;
-	public String fileNameRelative;
-	public int initNumPos;
-	public int initNumNeg;
-	public int initNumTotal;
-	public int trackerFlag;
-
-}

@@ -59,7 +59,7 @@ public class Main {
 			/**
 			 * SGD, J48, PART, NaiveBayes, AdaBoostM1
 			 * */
-			TrainModelByDomainOS.trainAllDomains(classifierSelected, null);
+			TrainModelByDomainOS.trainAllDomains(classifierSelected, jsonFileName);
 			break;
 
 		case "-p":
