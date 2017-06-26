@@ -122,7 +122,7 @@ public class ModelTrainer {
 
     public static Instances populateArff(Map<String, Integer> wordCount,
                                          ArrayList<Map<String, Integer>> trainMatrix,
-                                         ArrayList<Integer> PIILabels, int theta) {
+                                         ArrayList<Integer> PIILabels, int theta, String outFilePath) {
 //		System.out.println(info);
         // Mapping feature_name_index
         Map<String, Integer> fi = new HashMap<>();
@@ -180,8 +180,9 @@ public class ModelTrainer {
         }
         // Write into .arff file for persistence
         try {
+            Log.msg(TAG, "arff to " + outFilePath);
             BufferedWriter bw = new BufferedWriter(new FileWriter(
-                    Setting.getOutputDirectory() + "test.arff"));
+                    outFilePath));
             bw.write(trainingInstances.toString());
             bw.close();
         } catch (IOException e) {
@@ -218,12 +219,9 @@ public class ModelTrainer {
         trainingData = genTrainingMatrix(negJsons, trainingData);
 
         Log.warn(TAG, populateArff(trainingData.wordCount, trainingData.trainMatrix,
-                trainingData.piiLabels, 0));
-
-
-
-
-
+                trainingData.piiLabels, 0,
+                posFlowDir.getParentFile().getAbsolutePath() + File.separator +
+                        posFlowDir.getParentFile().getName()+ ".arff"));
     }
 
     public static void main(String[] args) {
