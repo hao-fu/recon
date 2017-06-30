@@ -1,7 +1,8 @@
 package fu.hao.analysis.flows;
 
 import fu.hao.utils.Log;
-import fu.hao.utils.Setting;
+import fu.hao.utils.WekaUtils;
+import javafx.util.Pair;
 import meddle.*;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -15,6 +16,9 @@ import weka.core.SparseInstance;
 import java.io.*;
 import java.util.*;
 
+import static fu.hao.utils.WekaUtils.buildClassifier;
+import static fu.hao.utils.WekaUtils.getClassifier;
+
 /**
  * Created by hfu on 6/23/2017.
  */
@@ -25,6 +29,8 @@ public class ModelTrainer {
     public final static int LABEL_POSITIVE = 1;
     public final static int LABEL_NEGATIVE = 0;
 
+    public static int MANY = 5000;
+
     public static List<JSONObject> dir2jsons(File jsonDir) {
         List<String> jsonFiles = new ArrayList<>();
         List<JSONObject> jsonObjects = new ArrayList<>();
@@ -34,8 +40,10 @@ public class ModelTrainer {
                 return (name.endsWith(".json"));
             }
         });
-        for (String s : dirFiles) {
-            jsonFiles.add(s);
+        if (dirFiles != null) {
+            for (String s : dirFiles) {
+                jsonFiles.add(s);
+            }
         }
 
         for (final String fileName : jsonFiles) {
@@ -45,17 +53,28 @@ public class ModelTrainer {
             try {
                 jsonObjects.add((JSONObject) parser.parse(new FileReader(
                         jsonDir.getAbsolutePath() + File.separator + fileName)));
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ParseException e) {
+            } catch (IOException | ParseException e) {
                 e.printStackTrace();
             }
         }
 
         return jsonObjects;
     }
+
+    /**
+     * Give the number of positive samples and the number of negative samples,
+     * find out the balancing values for both parties.
+     */
+    public static Pair<String, Float> balanceClassSamples(float numPos, float numNeg) {
+        // FIXME the class numbers are reversed
+        if (numPos > numNeg) {
+            return new Pair<>("1", numPos / numNeg * 100 - 100);
+        } else {
+            return new Pair<>("0", numNeg / numPos * 100 - 100);
+        }
+    }
+
+
 
     /**
      * Given positive lines and negative lines, generate the overall word_count
@@ -122,7 +141,7 @@ public class ModelTrainer {
 
     public static Instances populateArff(Map<String, Integer> wordCount,
                                          ArrayList<Map<String, Integer>> trainMatrix,
-                                         ArrayList<Integer> PIILabels, int theta, String outFilePath) {
+                                         ArrayList<Integer> PIILabels, int theta) {
 //		System.out.println(info);
         // Mapping feature_name_index
         Map<String, Integer> fi = new HashMap<>();
@@ -178,16 +197,7 @@ public class ModelTrainer {
             trainingInstances.add(data);
             count++;
         }
-        // Write into .arff file for persistence
-        try {
-            Log.msg(TAG, "arff to " + outFilePath);
-            BufferedWriter bw = new BufferedWriter(new FileWriter(
-                    outFilePath));
-            bw.write(trainingInstances.toString());
-            bw.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
         return trainingInstances;
     }
 
@@ -201,12 +211,16 @@ public class ModelTrainer {
      */
     public static void train(String classifierName,
                                        String posFlowDirPath,
-                                       String negFlowDirPath) {
+                                       String negFlowDirPath) throws Exception {
         File posFlowDir = new File(posFlowDirPath);
         File negFlowDir = new File(negFlowDirPath);
 
         if (!posFlowDir.isDirectory() || !negFlowDir.isDirectory()) {
             throw new RuntimeException("The postive or negavtive flow dir is incorrect.");
+        }
+
+        if (!posFlowDir.getParentFile().equals(negFlowDir.getParentFile())) {
+            throw new RuntimeException("The postive or negavtive flow dir is inconsistent");
         }
 
         List<JSONObject> posJsons = dir2jsons(posFlowDir);
@@ -218,14 +232,21 @@ public class ModelTrainer {
         trainingData = genTrainingMatrix(posJsons, trainingData);
         trainingData = genTrainingMatrix(negJsons, trainingData);
 
-        Log.warn(TAG, populateArff(trainingData.wordCount, trainingData.trainMatrix,
-                trainingData.piiLabels, 0,
-                posFlowDir.getParentFile().getAbsolutePath() + File.separator +
-                        posFlowDir.getParentFile().getName()+ ".arff"));
+        Instances instances =  populateArff(trainingData.wordCount, trainingData.trainMatrix,
+                trainingData.piiLabels, 0);
+        Pair<String, Float> balance = balanceClassSamples(posJsons.size(), negJsons.size());
+        boolean test = true;
+        if (!test && balance.getValue() > 25) {
+            Log.msg(TAG, "Oversampling: " + balance);
+            instances = WekaUtils.overSampling(instances, balance.getKey(), balance.getValue().intValue());
+        }
+        WekaUtils.write2Arff(instances, posFlowDir.getParentFile().getAbsolutePath() + File.separator +
+                posFlowDir.getParentFile().getName()+ ".arff");
+        buildClassifier(getClassifier(classifierName), instances, "CTU-13");
     }
 
-    public static void main(String[] args) {
-        ModelTrainer.train("", "C:\\Users\\hfu\\PycharmProjects\\TrafficAnalysis\\CTU-13-5\\1",
+    public static void main(String[] args) throws Exception {
+        ModelTrainer.train("j48", "C:\\Users\\hfu\\PycharmProjects\\TrafficAnalysis\\CTU-13-5\\1",
                 "C:\\Users\\hfu\\PycharmProjects\\TrafficAnalysis\\CTU-13-5\\0");
     }
 
