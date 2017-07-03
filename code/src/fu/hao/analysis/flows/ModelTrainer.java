@@ -1,8 +1,8 @@
 package fu.hao.analysis.flows;
 
 import fu.hao.utils.Log;
+import fu.hao.utils.Pair;
 import fu.hao.utils.WekaUtils;
-import javafx.util.Pair;
 import meddle.*;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -48,12 +48,13 @@ public class ModelTrainer {
 
         for (final String fileName : jsonFiles) {
             final long beforeRun = System.nanoTime();
-            Log.msg(TAG, "Begin to analyze: " + fileName);
+            Log.debug(TAG, "Begin to analyze: " + fileName);
             JSONParser parser = new JSONParser();
+            String jsonFilePath = jsonDir.getAbsolutePath() + File.separator + fileName;
             try {
-                jsonObjects.add((JSONObject) parser.parse(new FileReader(
-                        jsonDir.getAbsolutePath() + File.separator + fileName)));
+                jsonObjects.add((JSONObject) parser.parse(new FileReader(jsonFilePath)));
             } catch (IOException | ParseException e) {
+                Log.warn(TAG, jsonFilePath);
                 e.printStackTrace();
             }
         }
@@ -209,7 +210,7 @@ public class ModelTrainer {
      * @param classifierName
      *            - support for J48, SGD, ...TODO: LIST ALL THAT SUPPORTED
      */
-    public static void train(String classifierName,
+    public static void train(String classifierName, boolean test,
                                        String posFlowDirPath,
                                        String negFlowDirPath) throws Exception {
         File posFlowDir = new File(posFlowDirPath);
@@ -235,19 +236,22 @@ public class ModelTrainer {
         Instances instances =  populateArff(trainingData.wordCount, trainingData.trainMatrix,
                 trainingData.piiLabels, 0);
         Pair<String, Float> balance = balanceClassSamples(posJsons.size(), negJsons.size());
-        boolean test = true;
         if (!test && balance.getValue() > 25) {
             Log.msg(TAG, "Oversampling: " + balance);
             instances = WekaUtils.overSampling(instances, balance.getKey(), balance.getValue().intValue());
         }
         WekaUtils.write2Arff(instances, posFlowDir.getParentFile().getAbsolutePath() + File.separator +
                 posFlowDir.getParentFile().getName()+ ".arff");
-        buildClassifier(getClassifier(classifierName), instances, "CTU-13");
+        if (!test) {
+            buildClassifier(getClassifier(classifierName), instances, "CTU-13");
+        }
     }
 
     public static void main(String[] args) throws Exception {
-        ModelTrainer.train("j48", "C:\\Users\\hfu\\PycharmProjects\\TrafficAnalysis\\CTU-13-5\\1",
-                "C:\\Users\\hfu\\PycharmProjects\\TrafficAnalysis\\CTU-13-5\\0");
+        String baseDir = "/home/hao/PycharmProjects/TrafficAnalysis/data_collection/output/CTU-13-5/";
+        boolean test = true;
+        ModelTrainer.train("j48", test, baseDir + "1/",
+                baseDir + "0/");
     }
 
 
