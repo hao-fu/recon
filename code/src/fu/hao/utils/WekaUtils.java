@@ -205,7 +205,7 @@ public class WekaUtils {
 
 
         Attribute attribute1 = new Attribute("text", (ArrayList<String>) null);
-        Attribute attribute2 = new Attribute("text_label", classVal); // Do not use common words for this attribute
+        Attribute attribute2 = new Attribute("text_label", classVal); // Do not use common words.txt for this attribute
 
         atts.add(attribute1);
         atts.add(attribute2);
@@ -244,7 +244,7 @@ public class WekaUtils {
         ArrayList<Attribute> atts = new ArrayList<>();
 
         Attribute attribute1 = new Attribute("text", (ArrayList<String>) null);
-        //Attribute attribute2 = new Attribute("text_label", classVal); // Do not use common words for this attribute
+        //Attribute attribute2 = new Attribute("text_label", classVal); // Do not use common words.txt for this attribute
 
         atts.add(attribute1);
         //atts.add(attribute2);

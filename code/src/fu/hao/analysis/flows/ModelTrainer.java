@@ -1,13 +1,24 @@
 package fu.hao.analysis.flows;
 
+import cc.mallet.util.CommandOption;
 import fu.hao.utils.Log;
 import fu.hao.utils.WekaUtils;
 import javafx.util.Pair;
 import meddle.*;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.CharArraySet;
+import org.apache.lucene.analysis.StopFilter;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.core.StopAnalyzer;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.analysis.standard.StandardTokenizer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.util.AttributeFactory;
+import org.apache.lucene.util.Version;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import weka.classifiers.Classifier;
 import weka.core.Attribute;
 import weka.core.Instance;
 import weka.core.Instances;
@@ -47,8 +58,7 @@ public class ModelTrainer {
         }
 
         for (final String fileName : jsonFiles) {
-            final long beforeRun = System.nanoTime();
-            Log.msg(TAG, "Begin to analyze: " + fileName);
+            Log.bb(TAG, "Begin to analyze: " + fileName);
             JSONParser parser = new JSONParser();
             try {
                 jsonObjects.add((JSONObject) parser.parse(new FileReader(
@@ -74,6 +84,32 @@ public class ModelTrainer {
         }
     }
 
+    public static String removeStopWords(String text) throws Exception {
+        String DELIMITERS = "_|\\.|,|\t|/|\\||\\*|!|#|&|\\?|\n|;|\\{|\\}|\\(|\\)| ";
+        StringBuilder stringBuilder = new StringBuilder();
+        Set<String> words = new HashSet<>();
+
+        for (String word : text.split(DELIMITERS)) {
+            words.addAll(Util.wordBreak(word));
+        }
+        for (String word : words) {
+            Analyzer analyzer = new EnglishAnalyzer();
+            TokenStream stream = analyzer.tokenStream(null, new StringReader(word));
+            stream = new StopFilter(stream, StandardAnalyzer.STOP_WORDS_SET);
+
+            CharTermAttribute cattr = stream.addAttribute(CharTermAttribute.class);
+            stream.reset();
+
+            while (stream.incrementToken()) {
+                stringBuilder.append(cattr);
+                stringBuilder.append(' ');
+            }
+            stream.end();
+            stream.close();
+        }
+        return stringBuilder.toString();
+    }
+
 
 
     /**
@@ -87,7 +123,7 @@ public class ModelTrainer {
      * @author renjj
      * */
     public static TrainingData genTrainingMatrix(List<JSONObject> flows,
-                                                      TrainingData trainingData) {
+                                                      TrainingData trainingData) throws Exception {
         ArrayList<Map<String, Integer>> trainMatrix = trainingData.trainMatrix;
         ArrayList<Integer> piiLabels = trainingData.piiLabels;
         Map<String, Integer> word_count = trainingData.wordCount;
@@ -96,19 +132,27 @@ public class ModelTrainer {
             int label = (int) (long) flow.get(JsonKeyDef.F_KEY_LABEL);
             String line = "";
             // fields: uri, post_body, refererrer, headers+values,
-            line += flow.get(JsonKeyDef.F_KEY_URI) + "\t";
-            line += flow.get(JsonKeyDef.F_KEY_POST_BODY) + "\t";
-            line += flow.get(JsonKeyDef.F_KEY_REFERRER) + "\t";
-            JSONObject headers = (JSONObject) flow.get(JsonKeyDef.F_KEY_HEADERS);
-            for (Object h : headers.keySet()) {
-                line += h + "=" + headers.get(h) + "\t";
-            }
-            line += flow.get(JsonKeyDef.F_KEY_DOMAIN) + "\t";
+            line += removeStopWords((String) flow.get(JsonKeyDef.F_KEY_DOMAIN)) + " ";
+            line += removeStopWords((String) flow.get(JsonKeyDef.F_KEY_URI)) + " ";
+
+            //line += flow.get(JsonKeyDef.F_KEY_POST_BODY) + "\t";
+            //Log.msg(TAG, flow.get(JsonKeyDef.F_KEY_POST_BODY));
+            //line += flow.get(JsonKeyDef.F_KEY_REFERRER) + "\t";
+            //Log.msg(TAG, flow.get(JsonKeyDef.F_KEY_REFERRER));
+            //JSONObject headers = (JSONObject) flow.get(JsonKeyDef.F_KEY_HEADERS);
+            //for (Object h : headers.keySet()) {
+              //  line += h + "=" + headers.get(h) + "\t";
+            //}
+
             RString sf = new RString();
             sf.breakLineIntoWords(line);
+            Log.bb(TAG, line);
+            Log.bb(TAG, removeStopWords(line));
+
             Map<String, Integer> words = sf.Words;
             for (Map.Entry<String, Integer> entry : words.entrySet()) {
                 String word_key = entry.getKey().trim();
+                Log.bb(TAG, word_key);
                 if (word_key.length() == 1) {
                     char c = word_key.toCharArray()[0];
                     if (!Character.isAlphabetic(c) && !Character.isDigit(c))
@@ -220,7 +264,7 @@ public class ModelTrainer {
         }
 
         if (!posFlowDir.getParentFile().equals(negFlowDir.getParentFile())) {
-            throw new RuntimeException("The postive or negavtive flow dir is inconsistent");
+            Log.warn(TAG, "The postive or negavtive flow dir is inconsistent");
         }
 
         List<JSONObject> posJsons = dir2jsons(posFlowDir);
@@ -240,14 +284,16 @@ public class ModelTrainer {
             Log.msg(TAG, "Oversampling: " + balance);
             instances = WekaUtils.overSampling(instances, balance.getKey(), balance.getValue().intValue());
         }
-        WekaUtils.write2Arff(instances, posFlowDir.getParentFile().getAbsolutePath() + File.separator +
-                posFlowDir.getParentFile().getName()+ ".arff");
+        WekaUtils.write2Arff(instances, negFlowDir.getParentFile().getAbsolutePath() + File.separator +
+                negFlowDir.getParentFile().getName()+ ".arff");
         buildClassifier(getClassifier(classifierName), instances, "CTU-13");
     }
 
     public static void main(String[] args) throws Exception {
-        ModelTrainer.train("j48", "C:\\Users\\hfu\\PycharmProjects\\TrafficAnalysis\\CTU-13-5\\1",
-                "C:\\Users\\hfu\\PycharmProjects\\TrafficAnalysis\\CTU-13-5\\0");
+        final long beforeRun = System.nanoTime();
+        ModelTrainer.train("j48", "C:\\Users\\hfu\\Documents\\flows\\CTU-13\\CTU-13-1\\1",
+                "C:\\Users\\hfu\\Documents\\flows\\CTU-13\\CTU-13-1\\0");
+        Log.msg(TAG, "Time to generate arff: " + (System.nanoTime() - beforeRun) / 1E9 + " seconds");
     }
 
 

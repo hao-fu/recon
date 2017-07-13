@@ -21,6 +21,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import org.apache.commons.io.FileUtils;
 import org.json.simple.JSONObject;
 
 import weka.associations.Apriori;
@@ -43,6 +44,7 @@ public class Util {
 	static final String AB1= "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 	static final String LETTERS= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 	static boolean debug = true;
+	static Set<String> wordDict = null;
 
 	public static String filterASCII(String line) {
 		line = line.replaceAll("[\\\\][x][0-9a-e][0-9a-f]", "");
@@ -327,4 +329,60 @@ public class Util {
 			String keyName) {
 		return (JSONObject) obj.get(keyName);
 	}
+
+	public static File getWorkDir() {
+        return new File(System.getProperty("user.dir"));
+    }
+
+	public static List<String> wordBreak(String string) throws IOException {
+	    if (wordDict == null) {
+
+            wordDict = new HashSet<String>(FileUtils.readLines(new File(getWorkDir() + File.separator + "code/config"
+                    + File.separator + "words.txt")));
+        }
+        return wordBreak(string, wordDict);
+    }
+
+    public static List<String> wordBreak(String s, Set<String> wordDict) {
+        ArrayList<String> [] pos = new ArrayList[s.length()+1];
+        pos[0]=new ArrayList<String>();
+        ArrayList<String> result = new ArrayList<String>();
+
+        for(int i=0; i<s.length(); i++){
+            if(pos[i]!=null){
+                for(int j=i+1; j<=s.length(); j++){
+                    String sub = s.substring(i,j);
+                    if(wordDict.contains(sub)){
+                        if(pos[j]==null){
+                            ArrayList<String> list = new ArrayList<String>();
+                            list.add(sub);
+                            pos[j]=list;
+                        }else{
+                            pos[j].add(sub);
+                        }
+
+                    }
+                }
+            }
+        }
+
+        if(pos[s.length()]==null){
+            result.add(s);
+        }else{
+            dfs(pos, result, "", s.length());
+        }
+        return result;
+    }
+
+    public static void dfs(ArrayList<String> [] pos, ArrayList<String> result, String curr, int i){
+        if(i==0){
+            result.add(curr.trim());
+            return;
+        }
+
+        for(String s: pos[i]){
+            String combined = s + " "+ curr;
+            dfs(pos, result, combined, i-s.length());
+        }
+    }
 }

@@ -117,7 +117,7 @@ public class TrainModelByDomainOS {
 	 * @param classifierName
 	 *            - e.g. J48
 	 * @param thresholdFrequency
-	 *            - for filtering infrequency words; e.g. 20
+	 *            - for filtering infrequency words.txt; e.g. 20
 	 * @param info
 	 *            - description of the training dataset for a domain_os
 	 */

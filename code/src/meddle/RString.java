@@ -47,13 +47,11 @@ public class RString {
 	public final static String DELIMITERS = ",|\t|/|\\||\\*|!|#|&|\\?|\n|;|\\{|\\}|\\(|\\)| ";
 
 	/**
-	 * Seprate a line of string into separated words. This function could not
+	 * Seprate a line of string into separated words.txt. This function could not
 	 * run as a parallel function.
 	 * 
-	 * @param filename
-	 *            name of original flow, for later recovery
 	 * @param line
-	 * @return A list of words appearing in the line and their frequency.
+	 * @return A list of words.txt appearing in the line and their frequency.
 	 * 
 	 */
 	public ArrayList<String> breakLineIntoWords(String line) {
@@ -117,10 +115,10 @@ public class RString {
 						words.put(reconk, 1);
 					}
 					// DONE:skip values, as we don't anticipate it at feature.
-					// if (words.containsKey(reconv)) {
-					// words.put(reconv, words.get(reconv) + 1);
+					// if (words.txt.containsKey(reconv)) {
+					// words.txt.put(reconv, words.txt.get(reconv) + 1);
 					// } else {
-					// words.put(reconv, 1);
+					// words.txt.put(reconv, 1);
 					// }
 				} else if (tsplit.length == 1) {
 					t = tsplit[0];

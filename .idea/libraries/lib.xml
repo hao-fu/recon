@@ -8,6 +8,9 @@
       <root url="jar://$PROJECT_DIR$/code/lib/dom4j-2.0.0-ALPHA-2.jar!/" />
       <root url="jar://$PROJECT_DIR$/code/lib/jsoup-1.7.3.jar!/" />
       <root url="jar://$PROJECT_DIR$/code/lib/SMOTE-1.0.3.jar!/" />
+      <root url="jar://$PROJECT_DIR$/code/lib/lucene-core-6.6.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/code/lib/lucene-analyzers-common-6.6.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/code/lib/commons-io-2.5.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
