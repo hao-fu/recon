@@ -1,6 +1,5 @@
 package fu.hao.utils;
 
-import javafx.util.Pair;
 import weka.attributeSelection.*;
 import weka.classifiers.Classifier;
 import weka.classifiers.UpdateableClassifier;
