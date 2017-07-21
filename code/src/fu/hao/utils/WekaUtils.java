@@ -1,5 +1,15 @@
 package fu.hao.utils;
 
+import meddle.Util;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.StopFilter;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import weka.attributeSelection.*;
 import weka.classifiers.Classifier;
 import weka.classifiers.UpdateableClassifier;
@@ -47,25 +57,6 @@ import javax.xml.parsers.FactoryConfigurationError;
  * @since 3/1/2017
  */
 public class WekaUtils {
-    private class LabelledDoc {
-        private String label;
-        private String doc = null;
-
-        LabelledDoc(String label, String doc) {
-            this.label = label;
-            doc = doc.replace(",", "");
-            this.doc = doc;
-        }
-
-        public String getLabel() {
-            return label;
-        }
-
-        public String getDoc() {
-            return doc;
-        }
-    }
-
     public static Instances loadArff(String filePath) throws Exception {
         DataSource source = new DataSource(filePath);
         Instances data = source.getDataSet();
@@ -74,6 +65,60 @@ public class WekaUtils {
         if (data.classIndex() == -1)
             data.setClassIndex(data.numAttributes() - 1);
         return data;
+    }
+
+    public static String removeStopWords(String text) throws Exception {
+        String DELIMITERS = "_|\\.|,|\t|/|\\||\\*|!|#|&|\\?|\n|;|\\{|\\}|\\(|\\)| ";
+        StringBuilder stringBuilder = new StringBuilder();
+        Set<String> words = new HashSet<>();
+
+        for (String word : text.split(DELIMITERS)) {
+            words.addAll(Util.wordBreak(word));
+        }
+        for (String word : words) {
+            Analyzer analyzer = new EnglishAnalyzer();
+            TokenStream stream = analyzer.tokenStream(null, new StringReader(word));
+            stream = new StopFilter(stream, StandardAnalyzer.STOP_WORDS_SET);
+
+            CharTermAttribute cattr = stream.addAttribute(CharTermAttribute.class);
+            stream.reset();
+
+            while (stream.incrementToken()) {
+                stringBuilder.append(cattr);
+                stringBuilder.append(' ');
+            }
+            stream.end();
+            stream.close();
+        }
+        return stringBuilder.toString();
+    }
+
+    public static List<JSONObject> dir2jsons(File jsonDir) {
+        List<String> jsonFiles = new ArrayList<>();
+        List<JSONObject> jsonObjects = new ArrayList<>();
+        String[] dirFiles = jsonDir.list(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return (name.endsWith(".json"));
+            }
+        });
+        if (dirFiles != null) {
+            for (String s : dirFiles) {
+                jsonFiles.add(s);
+            }
+        }
+
+        for (final String fileName : jsonFiles) {
+            JSONParser parser = new JSONParser();
+            try {
+                jsonObjects.add((JSONObject) parser.parse(new FileReader(
+                        jsonDir.getAbsolutePath() + File.separator + fileName)));
+            } catch (IOException | ParseException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return jsonObjects;
     }
 
     public static Classifier getPureClassifier() {

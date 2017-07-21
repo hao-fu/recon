@@ -19,12 +19,10 @@ import org.apache.lucene.util.Version;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import weka.core.Attribute;
-import weka.core.Instance;
-import weka.core.Instances;
-import weka.core.SparseInstance;
+import weka.core.*;
 
 import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static fu.hao.utils.WekaUtils.buildClassifier;
@@ -237,6 +235,8 @@ public class ModelTrainer {
                     instanceValue[i] = val;
                 }
             }
+            //Log.msg(TAG, instanceValue);
+            //Instance data = new DenseInstance(1.0, instanceValue);
             Instance data = new SparseInstance(1.0, instanceValue);
             trainingInstances.add(data);
             count++;
@@ -245,25 +245,16 @@ public class ModelTrainer {
         return trainingInstances;
     }
 
-
-    /**
-     * Load all labelled network flows from JSON files and train classifiers for
-     * each domain_os.
-     *
-     * @param classifierName
-     *            - support for J48, SGD, ...TODO: LIST ALL THAT SUPPORTED
-     */
-    public static void train(String classifierName,
-                                       String posFlowDirPath,
-                                       String negFlowDirPath) throws Exception {
+    public static Instances createArff(String posFlowDirPath,
+                                  String negFlowDirPath) throws Exception {
         File posFlowDir = new File(posFlowDirPath);
         File negFlowDir = new File(negFlowDirPath);
 
         if (!posFlowDir.isDirectory() || !negFlowDir.isDirectory()) {
-            throw new RuntimeException("The postive or negavtive flow dir is incorrect.");
+            Log.warn(TAG,"The postive or negavtive flow dir is incorrect.");
         }
 
-        if (!posFlowDir.getParentFile().equals(negFlowDir.getParentFile())) {
+        if (posFlowDir.getParentFile() == null || !posFlowDir.getParentFile().equals(negFlowDir.getParentFile())) {
             Log.warn(TAG, "The postive or negavtive flow dir is inconsistent");
         }
 
@@ -284,14 +275,30 @@ public class ModelTrainer {
             Log.msg(TAG, "Oversampling: " + balance);
             instances = WekaUtils.overSampling(instances, balance.getKey(), balance.getValue().intValue());
         }
+        String timeStamp = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date());
         WekaUtils.write2Arff(instances, negFlowDir.getParentFile().getAbsolutePath() + File.separator +
-                negFlowDir.getParentFile().getName()+ ".arff");
+                negFlowDir.getParentFile().getName()+ "_" + timeStamp + ".arff");
+        return instances;
+    }
+
+
+    /**
+     * Load all labelled network flows from JSON files and train classifiers for
+     * each domain_os.
+     *
+     * @param classifierName
+     *            - support for J48, SGD, ...TODO: LIST ALL THAT SUPPORTED
+     */
+    public static void train(String classifierName,
+                                       String posFlowDirPath,
+                                       String negFlowDirPath) throws Exception {
+        Instances instances = createArff(posFlowDirPath, negFlowDirPath);
         buildClassifier(getClassifier(classifierName), instances, "CTU-13");
     }
 
     public static void main(String[] args) throws Exception {
         final long beforeRun = System.nanoTime();
-        ModelTrainer.train("j48", "C:\\Users\\hfu\\Documents\\flows\\CTU-13\\CTU-13-1\\1",
+        ModelTrainer.createArff("C:\\Users\\hfu\\Documents\\flows\\CTU-13\\CTU-13-1\\1",
                 "C:\\Users\\hfu\\Documents\\flows\\CTU-13\\CTU-13-1\\0");
         Log.msg(TAG, "Time to generate arff: " + (System.nanoTime() - beforeRun) / 1E9 + " seconds");
     }

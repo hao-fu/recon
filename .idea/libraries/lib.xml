@@ -13,6 +13,9 @@
       <root url="jar://$PROJECT_DIR$/code/lib/commons-io-2.5.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://C:/Program Files/Weka-3-8/weka-src.jar!/src/main/java" />
+      <root url="jar://C:/Program Files/Weka-3-8/weka-src.jar!/src/test/java" />
+    </SOURCES>
   </library>
 </component>
