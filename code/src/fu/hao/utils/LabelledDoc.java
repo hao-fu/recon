@@ -20,4 +20,12 @@ public class LabelledDoc {
     public String getDoc() {
         return doc;
     }
+
+    public void setDoc(String doc) {
+        this.doc = doc;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
+    }
 }

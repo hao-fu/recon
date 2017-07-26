@@ -8,6 +8,7 @@ import meddle.JsonKeyDef;
 import meddle.RString;
 import meddle.TrainingData;
 import org.json.simple.JSONObject;
+import weka.core.Attribute;
 import weka.core.Instances;
 import weka.filters.Filter;
 import weka.filters.unsupervised.attribute.Reorder;
@@ -15,10 +16,7 @@ import weka.filters.unsupervised.attribute.StringToWordVector;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static fu.hao.utils.WekaUtils.getWordFilter;
 
@@ -52,8 +50,6 @@ public class WekaBagModelTrainer {
      * Given positive lines and negative lines, generate the overall word_count
      * and trainMatrix.
      *
-
-
      * @author renjj
      * */
     public static List<LabelledDoc> genDocs(List<JSONObject> posflows, List<JSONObject> negFlows) throws Exception {
@@ -84,23 +80,22 @@ public class WekaBagModelTrainer {
         List<String> labels = new ArrayList<>();
         labels.add("0");
         labels.add("1");
-
-        Instances instances = WekaUtils.docs2Instances(genDocs(posJsons, negJsons), labels);
+        List<LabelledDoc> docs = genDocs(posJsons, negJsons);
+        WekaUtils.preProcessingDocs(docs);
+        Instances instances = WekaUtils.docs2Instances(docs, labels);
         StringToWordVector stringToWordVector = getWordFilter(instances, false);
         stringToWordVector.setWordsToKeep(100000);
-        //stringToWordVector.setMinTermFreq(2);
+        stringToWordVector.setLowerCaseTokens(true);
+        stringToWordVector.setMinTermFreq(1);
         //stringToWordVector.setDoNotOperateOnPerClassBasis(false);
         Log.msg(TAG, "keeping " + stringToWordVector.getWordsToKeep());
         instances = Filter.useFilter(instances, stringToWordVector);
-        Reorder reorder = new Reorder();
-        reorder.setAttributeIndices("2-last,1");
-        reorder.setInputFormat(instances);
-        instances = Filter.useFilter(instances, reorder);
-        Log.msg(TAG, instances.classIndex());
-        //instances.replaceAttributeAt();
 
+        Log.msg(TAG, "Attributes: " + instances.numAttributes());
+
+        WekaUtils.featureFilterByPrefix(instances, docs, labels);
         String timeStamp = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date());
-        WekaUtils.write2Arff(instances, negFlowDir.getParentFile().getAbsolutePath() + File.separator +
+        WekaUtils.createArff(instances, negFlowDir.getParentFile().getAbsolutePath() + File.separator +
                 negFlowDir.getParentFile().getName()+ "_" + timeStamp + ".arff");
         return instances;
     }

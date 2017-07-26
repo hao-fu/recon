@@ -336,9 +336,13 @@ public class Util {
 
 	public static List<String> wordBreak(String string) throws IOException {
 	    if (wordDict == null) {
-
-            wordDict = new HashSet<String>(FileUtils.readLines(new File(getWorkDir() + File.separator + "code/config"
-                    + File.separator + "words.txt")));
+			if (getWorkDir().getAbsolutePath().contains("code")) {
+				wordDict = new HashSet<String>(FileUtils.readLines(new File(getWorkDir() + File.separator + "/config"
+						+ File.separator + "words.txt")));
+			} else {
+				wordDict = new HashSet<String>(FileUtils.readLines(new File(getWorkDir() + File.separator + "code/config"
+						+ File.separator + "words.txt")));
+			}
         }
         return wordBreak(string, wordDict);
     }

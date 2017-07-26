@@ -36,6 +36,7 @@ import weka.core.stemmers.SnowballStemmer;
 import weka.filters.Filter;
 import weka.filters.supervised.instance.SMOTE;
 import weka.filters.unsupervised.attribute.Remove;
+import weka.filters.unsupervised.attribute.Reorder;
 import weka.filters.unsupervised.attribute.StringToWordVector;
 
 import java.io.*;
@@ -347,6 +348,12 @@ public class WekaUtils {
     }
 
     public static Instances createArff(Instances data, String filePath) throws Exception {
+        if (data.classIndex() == 0) {
+            Reorder reorder = new Reorder();
+            reorder.setAttributeIndices("2-last,1");
+            reorder.setInputFormat(data);
+            data = Filter.useFilter(data, reorder);
+        }
         //System.out.println("--------------------------------------------------");
         System.out.println("Create ARFF file:" + filePath);
         //System.out.println(data.toString());
@@ -590,6 +597,109 @@ public class WekaUtils {
         return data;
     }
 
+    public static int minDistance(String word1, String word2) {
+        int len1 = word1.length();
+        int len2 = word2.length();
+
+        // len1+1, len2+1, because finally return dp[len1][len2]
+        int[][] dp = new int[len1 + 1][len2 + 1];
+
+        for (int i = 0; i <= len1; i++) {
+            dp[i][0] = i;
+        }
+
+        for (int j = 0; j <= len2; j++) {
+            dp[0][j] = j;
+        }
+
+        //iterate though, and check last char
+        for (int i = 0; i < len1; i++) {
+            char c1 = word1.charAt(i);
+            for (int j = 0; j < len2; j++) {
+                char c2 = word2.charAt(j);
+
+                //if last two chars equal
+                if (c1 == c2) {
+                    //update dp value for +1 length
+                    dp[i + 1][j + 1] = dp[i][j];
+                } else {
+                    int replace = dp[i][j] + 1;
+                    int insert = dp[i][j + 1] + 1;
+                    int delete = dp[i + 1][j] + 1;
+
+                    int min = replace > insert ? insert : replace;
+                    min = delete > min ? min : delete;
+                    dp[i + 1][j + 1] = min;
+                }
+            }
+        }
+
+        return dp[len1][len2];
+    }
+
+    /**
+     * @param str
+     * @return
+     */
+    public static String filterNumber(final String str) {
+        if(str == null || str.isEmpty()) return "";
+        for(char c1 : str.toCharArray()){
+            if(Character.isDigit(c1)){
+                continue;
+            } else {
+                boolean found = false;
+                StringBuilder sb = new StringBuilder();
+                for(char c : str.toCharArray()){
+                    if(Character.isDigit(c)){
+                        if (!found) {
+                            sb.append("9");
+                        }
+                        found = true;
+                    } else {
+                        sb.append(c);
+                        found = false;
+                    }
+                }
+
+                return sb.toString();
+            }
+        }
+        return str;
+    }
+
+    public static String greatestCommonPrefix(String a, String b) {
+        int minLength = Math.min(a.length(), b.length());
+        for (int i = 0; i < minLength; i++) {
+            if (a.charAt(i) != b.charAt(i)) {
+                return a.substring(0, i);
+            }
+        }
+        return a.substring(0, minLength);
+    }
+
+
+    public static boolean samePrefix(String string1, String string2) {
+        if (greatestCommonPrefix(string1, string2).length() > 5) {
+            return true;
+        } else {
+            return false;
+        }
+
+    }
+
+    public static void preProcessingDocs(List<LabelledDoc> docs) throws Exception {
+        for (LabelledDoc doc : docs) {
+            String text = WekaUtils.removeStopWords(doc.getDoc());
+            String[] words = text.split(" ");
+            StringBuilder newDoc = new StringBuilder();
+            for (String word : words) {
+                newDoc.append(filterNumber(word));
+                newDoc.append(" ");
+            }
+            doc.setDoc(newDoc.toString());
+        }
+    }
+
     public static void eval1() throws Exception {
         boolean user = false;
         List<String> labels = new ArrayList<>();
@@ -729,6 +839,84 @@ public class WekaUtils {
 
     }
 
+    public static Instances featureFilterByDistance(Instances instances, List<LabelledDoc> docs, List<String> labels) throws Exception {
+        //instances.replaceAttributeAt();
+        Set<Attribute> examined = new HashSet<>();
+        for (int i = 0; i < instances.numAttributes(); i++) {
+            Attribute attribute = instances.attribute(i);
+            // to reserve "context, content"
+            if (attribute.name().length() < 6 || !attribute.name().contains("9") || examined.contains(attribute)) {
+                continue;
+            }
+            for (int j = i + 1; j < instances.numAttributes(); j++) {
+                Attribute attribute1 = instances.attribute(j);
+                if (attribute1.name().length() < 6) {
+                    continue;
+                }
+                if ((float)WekaUtils.minDistance(attribute.name(), attribute1.name()) / (float) attribute.name().length() < 0.15) {
+                    examined.add(attribute1);
+                    for (LabelledDoc doc : docs) {
+                        if (doc.getDoc().contains(attribute1.name())) {
+                            doc.setDoc(doc.getDoc().replace(attribute1.name(), attribute.name()));
+                        }
+                    }
+                }
+            }
+        }
+
+        instances = WekaUtils.docs2Instances(docs, labels);
+        StringToWordVector stringToWordVector = getWordFilter(instances, false);
+        stringToWordVector.setWordsToKeep(100000);
+        stringToWordVector.setLowerCaseTokens(true);
+        stringToWordVector.setMinTermFreq(1);
+        return Filter.useFilter(instances, stringToWordVector);
+    }
+
+    public static Instances featureFilterByPrefixHelper(Instances instances, List<LabelledDoc> docs, List<String> labels) throws Exception {
+        //instances.replaceAttributeAt();
+        Set<Attribute> examined = new HashSet<>();
+        for (int i = 0; i < instances.numAttributes(); i++) {
+            Attribute attribute = instances.attribute(i);
+            // to reserve "context, content"
+            if (attribute.name().length() < 6 || !attribute.name().contains("9") || examined.contains(attribute)) {
+                continue;
+            }
+            for (int j = i + 1; j < instances.numAttributes(); j++) {
+                Attribute attribute1 = instances.attribute(j);
+                if (attribute1.name().length() < 6) {
+                    continue;
+                }
+
+                if (samePrefix(attribute.name(), attribute1.name())) {
+                    examined.add(attribute1);
+                    for (LabelledDoc doc : docs) {
+                        if (doc.getDoc().contains(attribute1.name())) {
+                            doc.setDoc(doc.getDoc().replace(attribute1.name(), attribute.name()));
+                        }
+                    }
+                }
+            }
+        }
+
+        instances = WekaUtils.docs2Instances(docs, labels);
+        StringToWordVector stringToWordVector = getWordFilter(instances, false);
+        stringToWordVector.setWordsToKeep(100000);
+        stringToWordVector.setLowerCaseTokens(true);
+        stringToWordVector.setMinTermFreq(1);
+        return Filter.useFilter(instances, stringToWordVector);
+    }
+
+    public static void featureFilterByPrefix(Instances instances, List<LabelledDoc> docs, List<String> labels) throws Exception {
+        //stringToWordVector.setDoNotOperateOnPerClassBasis(false);
+        int attributeNum = instances.numAttributes();
+        while (true) {
+            instances = WekaUtils.featureFilterByPrefixHelper(instances, docs, labels);
+            if (attributeNum == instances.numAttributes()) {
+                break;
+            }
+            attributeNum = instances.numAttributes();
+        }
+    }
 
     public static void main(String[] args) throws Exception {
         //eval1();
