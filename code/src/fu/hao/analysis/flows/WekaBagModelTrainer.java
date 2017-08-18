@@ -86,7 +86,7 @@ public class WekaBagModelTrainer {
         StringToWordVector stringToWordVector = getWordFilter(instances, false);
         stringToWordVector.setWordsToKeep(100000);
         stringToWordVector.setLowerCaseTokens(true);
-        stringToWordVector.setMinTermFreq(1);
+
         //stringToWordVector.setDoNotOperateOnPerClassBasis(false);
         Log.msg(TAG, "keeping " + stringToWordVector.getWordsToKeep());
         instances = Filter.useFilter(instances, stringToWordVector);
@@ -94,6 +94,15 @@ public class WekaBagModelTrainer {
         Log.msg(TAG, "Attributes: " + instances.numAttributes());
 
         WekaUtils.featureFilterByPrefix(instances, docs, labels);
+        instances = WekaUtils.docs2Instances(docs, labels);
+        stringToWordVector = getWordFilter(instances, false);
+        stringToWordVector.setWordsToKeep(100000);
+        stringToWordVector.setLowerCaseTokens(true);
+        stringToWordVector.setMinTermFreq(1);
+        //stringToWordVector.setDoNotOperateOnPerClassBasis(false);
+        instances = Filter.useFilter(instances, stringToWordVector);
+        Log.msg(TAG, "Attributes: " + instances.numAttributes());
+
         String timeStamp = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date());
         WekaUtils.createArff(instances, negFlowDir.getParentFile().getAbsolutePath() + File.separator +
                 negFlowDir.getParentFile().getName()+ "_" + timeStamp + ".arff");
