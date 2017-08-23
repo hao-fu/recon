@@ -151,9 +151,6 @@ public class ModelTrainerLite {
         while (all.hasNext()) {
             Map<String, Integer> dataMap = all.next();
             double[] instanceValue = new double[attributes.size()];
-            for (int i = 0; i < attributes.size() - 1; i++) {
-                instanceValue[i] = 0;
-            }
 
             for (Map.Entry<String, Integer> entry : dataMap.entrySet()) {
                 if (fi.containsKey(entry.getKey())) {
@@ -182,9 +179,6 @@ public class ModelTrainerLite {
         Map<String, Integer> attributes = instancesLite.getFeatures();
         Map<String, Integer> tokens = str2tokens(string);
         double[] instanceValue = new double[attributes.size()];
-        for (int i = 0; i < attributes.size() - 1; i++) {
-            instanceValue[i] = 0;
-        }
 
         for (String token : tokens.keySet()) {
             if (attributes.containsKey(token)) {
@@ -199,6 +193,7 @@ public class ModelTrainerLite {
 
     public static void printInstanceVal(double[] value) {
         StringBuilder stringBuilder = new StringBuilder();
+        Log.msg(TAG, value.length);
         for (double subValue : value) {
             stringBuilder.append(subValue + ",");
         }
@@ -209,7 +204,7 @@ public class ModelTrainerLite {
         final long beforeRun = System.nanoTime();
         List<String> urls = new ArrayList<>();
         urls.add("/action/account/getinfo?app_id=393f0e2a54c8f7f9b9ab2c71b61b11bd&udid=351565054929465&imsi=310410");
-        urls.add("https://www.zhihu.com/explore");
+        urls.add("https://www.zhihu.com/explore/zhihu/com");
         InstancesLite instances = ModelTrainerLite.str2FeatureValues(urls);
         Log.msg(TAG, instances.getFeatures());
         for (double[] value : instances.getValues()) {
