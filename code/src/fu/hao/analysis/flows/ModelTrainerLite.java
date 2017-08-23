@@ -21,7 +21,6 @@ import java.util.*;
 public class ModelTrainerLite {
     public static final String TAG = "ModelTrainerLite";
 
-
     public static String removeStopWords(String text) throws Exception {
         String DELIMITERS = "_|\\.|,|\t|/|\\||\\*|!|#|&|\\?|\n|;|\\{|\\}|\\(|\\)| ";
         StringBuilder stringBuilder = new StringBuilder();
@@ -48,6 +47,27 @@ public class ModelTrainerLite {
         return stringBuilder.toString();
     }
 
+    public static Map<String, Integer> str2tokens(String string) throws Exception {
+        string = removeStopWords(string);
+
+        //line += flow.get(JsonKeyDef.F_KEY_POST_BODY) + "\t";
+        //Log.msg(TAG, flow.get(JsonKeyDef.F_KEY_POST_BODY));
+        //line += flow.get(JsonKeyDef.F_KEY_REFERRER) + "\t";
+        //Log.msg(TAG, flow.get(JsonKeyDef.F_KEY_REFERRER));
+        //JSONObject headers = (JSONObject) flow.get(JsonKeyDef.F_KEY_HEADERS);
+        //for (Object h : headers.keySet()) {
+        //  line += h + "=" + headers.get(h) + "\t";
+        //}
+
+        RString sf = new RString();
+        sf.breakLineIntoWords(string);
+
+        Log.bb(TAG, string);
+        Log.bb(TAG, removeStopWords(string));
+
+        return sf.Words;
+    }
+
     /**
      * Given positive lines and negative lines, generate the overall word_count
      * and trainMatrix.
@@ -64,26 +84,7 @@ public class ModelTrainerLite {
         Map<String, Integer> word_count = trainingData.wordCount;
         int numOfPossibleFeatures = word_count.size();
         for (String url : strings) {
-            //int label = (int) (long) flow.get(JsonKeyDef.F_KEY_LABEL);
-            String line = "";
-            // fields: uri, post_body, refererrer, headers+values,
-            line += removeStopWords(url);
-
-            //line += flow.get(JsonKeyDef.F_KEY_POST_BODY) + "\t";
-            //Log.msg(TAG, flow.get(JsonKeyDef.F_KEY_POST_BODY));
-            //line += flow.get(JsonKeyDef.F_KEY_REFERRER) + "\t";
-            //Log.msg(TAG, flow.get(JsonKeyDef.F_KEY_REFERRER));
-            //JSONObject headers = (JSONObject) flow.get(JsonKeyDef.F_KEY_HEADERS);
-            //for (Object h : headers.keySet()) {
-            //  line += h + "=" + headers.get(h) + "\t";
-            //}
-
-            RString sf = new RString();
-            sf.breakLineIntoWords(line);
-            Log.msg(TAG, line);
-            Log.msg(TAG, removeStopWords(line));
-
-            Map<String, Integer> words = sf.Words;
+            Map<String, Integer> words = str2tokens(url);
             for (Map.Entry<String, Integer> entry : words.entrySet()) {
                 String word_key = entry.getKey().trim();
                 Log.bb(TAG, word_key);
@@ -128,8 +129,9 @@ public class ModelTrainerLite {
         ArrayList<Attribute> attributes = new ArrayList<Attribute>();
         int high_freq = trainMatrix.size();
 
-        if (high_freq - theta < 30)
+        if (high_freq - theta < 30) {
             theta = 0;
+        }
         for (Map.Entry<String, Integer> entry : wordCount.entrySet()) {
             // filter low frequency word
             String currentWord = entry.getKey();
@@ -173,6 +175,36 @@ public class ModelTrainerLite {
         return  getInstanceValues(trainingData.wordCount, trainingData.trainMatrix, 0);
     }
 
+    /*
+        Normally used for prediction
+     */
+    public static double[] str2FeatureValues(String string, InstancesLite instancesLite) throws Exception {
+        Map<String, Integer> attributes = instancesLite.getFeatures();
+        Map<String, Integer> tokens = str2tokens(string);
+        double[] instanceValue = new double[attributes.size()];
+        for (int i = 0; i < attributes.size() - 1; i++) {
+            instanceValue[i] = 0;
+        }
+
+        for (String token : tokens.keySet()) {
+            if (attributes.containsKey(token)) {
+                int i = attributes.get(token);
+                int val = tokens.get(token);
+                instanceValue[i] = val;
+            }
+        }
+
+        return instanceValue;
+    }
+
+    public static void printInstanceVal(double[] value) {
+        StringBuilder stringBuilder = new StringBuilder();
+        for (double subValue : value) {
+            stringBuilder.append(subValue + ",");
+        }
+        Log.msg(TAG, stringBuilder.toString());
+    }
+
     public static void main(String[] args) throws Exception {
         final long beforeRun = System.nanoTime();
         List<String> urls = new ArrayList<>();
@@ -181,13 +213,13 @@ public class ModelTrainerLite {
         InstancesLite instances = ModelTrainerLite.str2FeatureValues(urls);
         Log.msg(TAG, instances.getFeatures());
         for (double[] value : instances.getValues()) {
-            StringBuilder stringBuilder = new StringBuilder();
-            for (double subValue : value) {
-                stringBuilder.append(subValue + ",");
-            }
-            Log.msg(TAG, stringBuilder.toString());
+            printInstanceVal(value);
         }
         Log.msg(TAG, "Time to generate feature values: " + (System.nanoTime() - beforeRun) / 1E9 + " seconds");
+
+        String testURL = "https://github.com/hao-fu/MyFlowAnalysis/blob/master/src/playFlowDroid/CallFlowGraphSimplify.java";
+        Log.msg(TAG, str2tokens(testURL));
+        printInstanceVal(str2FeatureValues(testURL, instances));
     }
 
 
